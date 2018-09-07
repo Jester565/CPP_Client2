@@ -5,6 +5,7 @@
 #include <boost/system/error_code.hpp>
 #include <boost/logic/tribool.hpp>
 #include <boost/thread.hpp>
+#include <boost/asio/io_service.hpp>
 #include <thread>
 #include <mutex>
 #include <stdint.h>
@@ -29,6 +30,9 @@ public:
 	boost::shared_ptr<TCPConnection> getTCPConnection()
 	{
 		return tcpConnection;
+	}
+	boost::shared_ptr<UDPConnection> getUDPConnection() {
+		return udpConnection;
 	}
 	boost::logic::tribool getConnectionState()
 	{
