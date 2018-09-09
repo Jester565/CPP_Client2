@@ -5,6 +5,7 @@
 #include <boost/asio/streambuf.hpp>
 #include <boost/thread/mutex.hpp>
 #include <vector>
+#include <queue>
 
 class OPacket;
 class HeaderManager;
@@ -16,12 +17,12 @@ public:
 	static int SentCount;
 	static int ReceiveCount;
 	static int SentBytes;
-	static const uint16_t MAX_DATA_SIZE = 6100;
+	static const uint16_t MAX_DATA_SIZE = 40000;
 	TCPConnection(Client* client, boost::asio::ip::tcp::socket* boundSocket);
 
 	virtual void start();
 
-	virtual void read();
+	virtual void read(unsigned int receiveSize = 0);
 
 	void send(boost::shared_ptr<OPacket> oPack);
 
@@ -46,8 +47,8 @@ public:
 protected:
 	std::vector<unsigned char>* receiveStorage;
 	boost::asio::ip::tcp::socket* socket;
-	boost::mutex sendingMutex;
-	bool sending;
+	boost::mutex sendQueueMutex;
+	std::queue <boost::shared_ptr<std::vector <unsigned char>>> sendQueue;
 	HeaderManager* hm;
 	Client* client;
 	int errorMode;

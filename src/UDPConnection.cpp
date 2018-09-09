@@ -11,7 +11,7 @@ UDPConnection::UDPConnection(Client* client, boost::asio::ip::udp::socket* socke
 	:client(client), socket(socket), receiveData(nullptr)
 {
 	std::cout << "UDPRemoteEP: " << socket->remote_endpoint().address().to_string() << " : " << socket->remote_endpoint().port() << " : " << socket->remote_endpoint().address().is_v6() << std::endl;
-	std::cout << "UDPRemoteEP: " << socket->local_endpoint().address().to_string() << " : " << socket->local_endpoint().port() << " : " << socket->local_endpoint().address().is_v6() << std::endl;
+	std::cout << "UDPLocalEP: " << socket->local_endpoint().address().to_string() << " : " << socket->local_endpoint().port() << " : " << socket->local_endpoint().address().is_v6() << std::endl;
 	hm = client->createHeaderManager();
 }
 
@@ -26,7 +26,7 @@ void UDPConnection::read()
 
 void UDPConnection::send(boost::shared_ptr<OPacket> oPack)
 {
-	boost::shared_ptr<std::vector<unsigned char>> sendData = hm->encryptHeader(oPack);
+	boost::shared_ptr<std::vector<unsigned char>> sendData = hm->serializePacket(oPack);
 	socket->async_send(boost::asio::buffer(*sendData, sendData->size()), boost::bind(&UDPConnection::asyncSend, shared_from_this(), boost::asio::placeholders::error, sendData));
 }
 
@@ -76,10 +76,20 @@ void UDPConnection::asyncReceive(const boost::system::error_code& error, unsigne
 		}
 		std::cerr << "Error occured in UDP Reading: " << error << " - " << error.message() << std::endl;
 	}
-	boost::shared_ptr<IPacket> iPack = hm->decryptHeader(receiveData, nBytes);
-	if (iPack != nullptr)
+	int bytesProcessed = 0;
+	while (bytesProcessed < nBytes)
 	{
-		client->getPacketManager()->process(iPack);
+		unsigned int bytesToReceive = hm->getInitialReceiveSize();
+		unsigned int dataI = 0;
+		boost::shared_ptr<IPacket> iPack = nullptr;
+		do {
+			unsigned int fakeBytesReceived = bytesToReceive;
+			iPack = hm->parsePacket(receiveData->data() + dataI, fakeBytesReceived, bytesToReceive);
+			dataI += fakeBytesReceived;
+		} while (iPack == nullptr && dataI + bytesToReceive <= nBytes);
+		if (iPack != nullptr) {
+			client->getPacketManager()->process(iPack);
+		}
 	}
 	read();
 }
